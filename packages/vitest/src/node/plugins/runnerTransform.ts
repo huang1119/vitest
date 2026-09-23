@@ -40,6 +40,11 @@ export function ModuleRunnerTransform(): VitePlugin {
           if (name === '__vitest_vm__') {
             environment.dev.moduleRunnerTransform = false
             environment.consumer = 'client'
+            // VM tests load modules through native import. Vite's dependency
+            // optimizer has nothing to do here, but without this it still walks
+            // index.html and can abort the run on unrelated app dependencies.
+            environment.optimizeDeps ??= {}
+            environment.optimizeDeps.noDiscovery = true
           }
           else if (name === 'client' && browserEnabled) {
             environment.dev.moduleRunnerTransform = false

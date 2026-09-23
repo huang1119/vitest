@@ -18,6 +18,33 @@ test('importing files in restricted fs works correctly', async () => {
   expect(exitCode).toBe(0)
 })
 
+test.for(['vmThreads', 'vmForks'] as const)(
+  '%s does not optimize unrelated index.html entries',
+  async (pool) => {
+    const { stderr, exitCode } = await runInlineTests({
+      'index.html': '<script type="module" src="/main.js"></script>',
+      'main.js': 'import "flow-dep"',
+      'node_modules/flow-dep/package.json': JSON.stringify({
+        name: 'flow-dep',
+        type: 'module',
+        exports: './index.js',
+      }),
+      'node_modules/flow-dep/index.js': 'export const value: string = "flow-only"',
+      'basic.test.js': `
+        import { expect, test } from 'vitest'
+        test('runs without optimizing index.html', () => {
+          expect(1 + 1).toBe(2)
+        })
+      `,
+    }, {
+      pool,
+    })
+
+    expect(stderr).toBe('')
+    expect(exitCode).toBe(0)
+  },
+)
+
 // compiled scripts of inlined modules are shared between vm contexts within
 // a worker — module state must still be re-evaluated per test file. With 4
 // files on 2 workers, at least one worker runs several files, so a leak of
