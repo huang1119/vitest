@@ -148,6 +148,40 @@ test('the cache is still populated and reused when nothing interferes', async ()
   })
 })
 
+test('cache keys are stable across checkout roots', async () => {
+  const cachePath = join(
+    import.meta.dirname,
+    '../fixtures/.tmp-portable-module-cache',
+  )
+  rmSync(cachePath, { force: true, recursive: true })
+  restore.push(() => rmSync(cachePath, { force: true, recursive: true }))
+
+  const structure = {
+    'sum.js': `export const sum = (a, b) => a + b`,
+    'basic.test.js': /* js */ `
+      import { expect, test } from "vitest"
+      import { sum } from "./sum.js"
+      test("adds", () => {
+        expect(sum(1, 2)).toBe(3)
+      })
+    `,
+  }
+  const config = {
+    fsModuleCache: true,
+    fsModuleCachePath: cachePath,
+  }
+
+  const first = await runInlineTests(structure, config)
+  const firstEntries = readdirSync(cachePath).sort()
+  await first.ctx?.close()
+
+  const second = await runInlineTests(structure, config)
+  const secondEntries = readdirSync(cachePath).sort()
+
+  expect(secondEntries).toEqual(firstEntries)
+  expect(second.stderr).toBe('')
+})
+
 test('cached modules are invalidated after every lockfile change', async () => {
   const firstRun = await runInlineTests({
     'package.json': JSON.stringify({ type: 'module' }),

@@ -6,7 +6,7 @@ import type { ResolvedConfig } from '../types/config'
 import fs, { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import { parse, stringify } from 'flatted'
-import { dirname, join } from 'pathe'
+import { dirname, isAbsolute, join, relative } from 'pathe'
 import c from 'tinyrainbow'
 import { searchForWorkspaceRoot } from 'vite'
 import { createDebugger } from '../../utils/debugger'
@@ -240,7 +240,7 @@ export class FileSystemModuleCache {
     if (!environmentHash) {
       const cacheConfig = JSON.stringify(
         {
-          root: config.root,
+          root: relative(this.vitest.config.root, config.root),
           // at the moment, Vitest always forces base to be /
           base: config.base,
           mode: config.mode,
@@ -275,7 +275,9 @@ export class FileSystemModuleCache {
       this.fsEnvironmentHashMap.set(environment, environmentHash)
     }
 
-    hashString += id
+    const relativeId = isAbsolute(id) ? relative(config.root, id) : id
+
+    hashString += relativeId
       + fileContent
       + environmentHash
       + coverageAffectsCache
